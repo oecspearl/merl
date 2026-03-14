@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, Pencil, Target, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Pencil, Target, FileSpreadsheet, FileText } from "lucide-react";
 import { DropdownMenu, DropdownItem } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate, titleize } from "@/lib/utils";
 import type { Project } from "@/types/database";
@@ -14,20 +14,12 @@ interface ProjectCardProps {
 export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter();
 
-  const hasBaselines = project.components?.some((c) =>
-    c.questions?.some((q) => q.baselines && q.baselines.length > 0)
-  );
-
-  const hasTargets = project.components?.some((c) =>
-    c.questions?.some((q) => q.targets && q.targets.length > 0)
-  );
-
   return (
-    <div className="bg-white border border-purple-200 rounded-lg p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-white border border-purple-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-4 border-b border-gray-200 pb-3">
         <Link
           href={`/projects/${project.id}`}
-          className="text-base font-semibold text-gray-900 hover:text-purple-700 transition-colors"
+          className="text-base font-semibold text-purple-700 hover:text-purple-900 transition-colors"
         >
           {project.name}
         </Link>
@@ -35,6 +27,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <DropdownItem onClick={() => router.push(`/projects/${project.id}/dashboard`)}>
             <BarChart3 className="w-4 h-4" />
             View Dashboard
+          </DropdownItem>
+          <DropdownItem onClick={() => router.push(`/projects/${project.id}/reports`)}>
+            <FileText className="w-4 h-4" />
+            View Reports
           </DropdownItem>
           <DropdownItem onClick={() => router.push(`/projects/${project.id}/edit`)}>
             <Pencil className="w-4 h-4" />
@@ -44,12 +40,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <Target className="w-4 h-4" />
             Edit Baseline
           </DropdownItem>
-          {hasBaselines && (
-            <DropdownItem onClick={() => router.push(`/projects/${project.id}/targets`)}>
-              <Target className="w-4 h-4" />
-              Edit Targets
-            </DropdownItem>
-          )}
+          <DropdownItem onClick={() => router.push(`/projects/${project.id}/targets`)}>
+            <Target className="w-4 h-4" />
+            Edit Targets
+          </DropdownItem>
           <DropdownItem onClick={() => router.push(`/projects/${project.id}/export`)}>
             <FileSpreadsheet className="w-4 h-4" />
             Export Data
@@ -57,14 +51,14 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </DropdownMenu>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-2 gap-y-3 text-sm">
         <Field label="Donor" value={project.donor} />
-        <Field label="Start Date" value={formatDate(project.start_date)} />
-        <Field label="Approval Date" value={formatDate(project.approval_date)} />
-        <Field label="Fiscal Year" value={project.fiscal_year ? titleize(project.fiscal_year) : "—"} />
         <Field label="Budget" value={formatCurrency(project.budget)} />
-        <Field label="Expected Close" value={formatDate(project.end_date)} />
+        <Field label="Start Date" value={formatDate(project.start_date)} />
+        <Field label="Expected Close Date" value={formatDate(project.end_date)} />
+        <Field label="Approval Date" value={formatDate(project.approval_date)} />
         <Field label="Reporting Period" value={project.reporting_period ? titleize(project.reporting_period) : "—"} />
+        <Field label="Fiscal Year" value={project.fiscal_year ? titleize(project.fiscal_year) : "—"} />
       </div>
     </div>
   );
@@ -72,9 +66,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div>
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm font-medium text-gray-900">{value || "—"}</p>
+    <div className="flex gap-4">
+      <p className="font-semibold text-gray-700 min-w-[140px]">{label}</p>
+      <p className="text-gray-900">{value || "—"}</p>
     </div>
   );
 }

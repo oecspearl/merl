@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -45,8 +46,9 @@ export function Navbar() {
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         {/* Logo */}
         <div className="flex items-center gap-8">
-          <Link href="/projects" className="text-xl font-bold text-purple-700">
-            OECS MERL
+          <Link href="/projects" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="OECS Logo" width={160} height={160} />
+            <span className="text-xl font-bold text-purple-700">OECS MERL</span>
           </Link>
 
           {/* Nav Links */}

@@ -1,4 +1,5 @@
 import { QuestionCategory } from "@/types/database";
+import { TRAININGS, GENDERS, SUBJECTS, POSTS, EDROLES } from "@/types/constants";
 
 // Maps for converting integer DB values to string enum values
 const CATEGORY_VALUES: QuestionCategory[] = [
@@ -175,4 +176,100 @@ export function titleize(value: string): string {
  */
 export function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(" ");
+}
+
+/**
+ * Row descriptor for disaggregated data entry tables.
+ * Mirrors Rails map_data_points helper.
+ *
+ * `key`    — stored in baselines/targets/PIs  (e.g. "male-ed_officers")
+ * `cells`  — the display values for each non-Country data point column,
+ *            with empty strings for cells that should be visually merged
+ *            (i.e. only show label on first row of a group).
+ */
+export interface DataRow {
+  key: string;
+  cells: string[];  // one entry per non-Country data point column
+}
+
+/**
+ * Build structured rows for a question category.
+ * Returns the column headers (excluding "Country") and the row data.
+ * Mirrors Rails map_data_points — groups first-level labels so they
+ * appear only on the first row of each sub-group.
+ */
+export function mapDataPoints(category: QuestionCategory): {
+  headers: string[];
+  rows: DataRow[];
+} {
+  switch (category) {
+    case "country_training_gender": {
+      const rows: DataRow[] = [];
+      for (const t of TRAININGS) {
+        let firstOfTraining = true;
+        for (const g of GENDERS) {
+          rows.push({
+            key: `${t}-${g}`,
+            cells: [
+              firstOfTraining ? t : "",
+              titleize(g),
+            ],
+          });
+          firstOfTraining = false;
+        }
+      }
+      return { headers: ["Training", "Gender"], rows };
+    }
+
+    case "country_gender_edrole": {
+      const rows: DataRow[] = [];
+      for (const g of GENDERS) {
+        let firstOfGender = true;
+        for (const e of EDROLES) {
+          rows.push({
+            key: `${g}-${e}`,
+            cells: [
+              firstOfGender ? titleize(g) : "",
+              titleize(e),
+            ],
+          });
+          firstOfGender = false;
+        }
+      }
+      return { headers: ["Gender", "Edrole"], rows };
+    }
+
+    case "country_gender":
+      return {
+        headers: ["Gender"],
+        rows: GENDERS.map((g) => ({
+          key: g,
+          cells: [titleize(g)],
+        })),
+      };
+
+    case "country_post":
+      return {
+        headers: ["Post"],
+        rows: POSTS.map((p) => ({
+          key: p,
+          cells: [titleize(p)],
+        })),
+      };
+
+    case "country_subject":
+      return {
+        headers: ["Subject"],
+        rows: SUBJECTS.map((s) => ({
+          key: s,
+          cells: [titleize(s)],
+        })),
+      };
+
+    case "country":
+      return { headers: [], rows: [{ key: "value", cells: [] }] };
+
+    default:
+      return { headers: [], rows: [{ key: "value", cells: [] }] };
+  }
 }

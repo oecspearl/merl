@@ -3,52 +3,61 @@
 import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, StickyNote } from "lucide-react";
+import { ArrowLeft, Download, StickyNote, BarChart3, FileText } from "lucide-react";
 import { useProject, useSavePerformanceIndicators } from "@/hooks/useProjects";
 import { PageHeading } from "@/components/ui/page-heading";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Modal, Button } from "@/components/ui/modal";
-import { getDataPoints, getProjectYears, getCurrentQuarter, titleize, cn } from "@/lib/utils";
-import { TRAININGS, GENDERS, SUBJECTS, POSTS, EDROLES, MEANS_OF_VERIFICATION } from "@/types/constants";
+import { mapDataPoints, getProjectYears, getCurrentQuarter, cn } from "@/lib/utils";
+import { MEANS_OF_VERIFICATION } from "@/types/constants";
 import { LockToggle } from "@/components/ui/lock-toggle";
 import type { Question, QuestionCategory, Country, ProjectResponse } from "@/types/database";
 
 type FormState = Record<string, string>;
 type MoVState = Record<string, string[]>;
-
-function getRowKeys(category: QuestionCategory): { label: string; key: string }[] {
-  switch (category) {
-    case "country_training_gender":
-      return TRAININGS.flatMap((t) =>
-        GENDERS.map((g) => ({ label: `${titleize(t)} - ${titleize(g)}`, key: `${t}-${g}` }))
-      );
-    case "country_subject":
-      return SUBJECTS.map((s) => ({ label: titleize(s), key: s }));
-    case "country_gender":
-      return GENDERS.map((g) => ({ label: titleize(g), key: g }));
-    case "country_post":
-      return POSTS.map((p) => ({ label: titleize(p), key: p }));
-    case "country_gender_edrole":
-      return GENDERS.flatMap((g) =>
-        EDROLES.map((e) => ({ label: `${titleize(g)} - ${titleize(e)}`, key: `${g}-${e}` }))
-      );
-    default:
-      return [{ label: "Value", key: "value" }];
-  }
-}
+type CountryEntry = { id: string | null; name: string; short_name: string };
 
 function isCountryLevel(category: QuestionCategory): boolean {
   return category !== "no_level";
 }
 
-function getBaselineValue(question: Question, countryId: string | null, key: string): string {
+function getCountryEntries(
+  question: Question,
+  countries: Country[]
+): CountryEntry[] {
+  if (!isCountryLevel(question.category)) return [];
+  const entries: CountryEntry[] = countries.map((c) => ({
+    id: c.id,
+    name: c.name,
+    short_name: c.short_name,
+  }));
+  if (question.region) {
+    const regionName =
+      (countries[0] as Country & { region?: { name: string } })?.region?.name ||
+      "OECS";
+    entries.push({ id: null, name: regionName, short_name: regionName });
+  }
+  return entries;
+}
+
+function getBaselineValue(
+  question: Question,
+  countryId: string | null,
+  key: string
+): string {
   const baseline = question.baselines?.find(
-    (b) => (b.country_id || null) === countryId && (b.key || "value") === key
+    (b) =>
+      (b.country_id || null) === countryId && (b.key || "value") === key
   );
   return baseline?.value || "";
 }
 
-function getTargetValue(question: Question, countryId: string | null, key: string, year: number): string {
+function getTargetValue(
+  question: Question,
+  countryId: string | null,
+  key: string,
+  year: number
+): string {
   const target = question.targets?.find(
     (t) =>
       (t.country_id || null) === countryId &&
@@ -58,11 +67,15 @@ function getTargetValue(question: Question, countryId: string | null, key: strin
   return target?.value || "";
 }
 
-function hasBaselinesOrTargets(project: { components?: { questions?: Question[] }[] }): boolean {
+function hasBaselinesOrTargets(project: {
+  components?: { questions?: Question[] }[];
+}): boolean {
   return (
     project.components?.some((c) =>
       c.questions?.some(
-        (q) => (q.baselines && q.baselines.length > 0) || (q.targets && q.targets.length > 0)
+        (q) =>
+          (q.baselines && q.baselines.length > 0) ||
+          (q.targets && q.targets.length > 0)
       )
     ) || false
   );
@@ -75,7 +88,8 @@ export default function ProjectShowPage() {
   const saveIndicators = useSavePerformanceIndicators();
 
   const years = useMemo(
-    () => (project ? getProjectYears(project.start_date, project.end_date) : []),
+    () =>
+      project ? getProjectYears(project.start_date, project.end_date) : [],
     [project]
   );
 
@@ -83,22 +97,24 @@ export default function ProjectShowPage() {
   const [selectedQuarter, setSelectedQuarter] = useState<number | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [showOverwriteModal, setShowOverwriteModal] = useState(false);
-  const [pendingSaveStatus, setPendingSaveStatus] = useState<"draft" | "submitted" | null>(null);
+  const [pendingSaveStatus, setPendingSaveStatus] = useState<
+    "draft" | "submitted" | null
+  >(null);
 
   const activeYear = selectedYear ?? years[0] ?? null;
   const activeQuarter =
     selectedQuarter ??
     (project ? getCurrentQuarter(project.fiscal_year) : 1);
 
-  // Find existing project response for selected year/quarter
   const activeResponse = useMemo(() => {
     if (!project || !activeYear) return null;
-    return project.project_responses?.find(
-      (pr) => pr.year === activeYear && pr.quarter === activeQuarter
-    ) || null;
+    return (
+      project.project_responses?.find(
+        (pr) => pr.year === activeYear && pr.quarter === activeQuarter
+      ) || null
+    );
   }, [project, activeYear, activeQuarter]);
 
-  // Initialize form state from existing indicators
   const initialFormState = useMemo(() => {
     if (!activeResponse) return {};
     const state: FormState = {};
@@ -118,7 +134,9 @@ export default function ProjectShowPage() {
       const keyPart = pi.key || "value";
       const movKey = `${pi.question_id}-${countryPart}-${keyPart}`;
       if (pi.means_of_verification) {
-        state[movKey] = pi.means_of_verification.split(",").map((s) => s.trim());
+        state[movKey] = pi.means_of_verification
+          .split(",")
+          .map((s) => s.trim());
       }
     });
     return state;
@@ -137,14 +155,24 @@ export default function ProjectShowPage() {
     [initialMoVState, movState]
   );
 
-  const handleChange = (questionId: string, countryId: string, key: string, value: string) => {
+  const handleChange = (
+    questionId: string,
+    countryId: string,
+    key: string,
+    value: string
+  ) => {
     setFormState((prev) => ({
       ...prev,
       [`${questionId}-${countryId}-${key}`]: value,
     }));
   };
 
-  const handleMoVChange = (questionId: string, countryId: string, key: string, values: string[]) => {
+  const handleMoVChange = (
+    questionId: string,
+    countryId: string,
+    key: string,
+    values: string[]
+  ) => {
     setMovState((prev) => ({
       ...prev,
       [`${questionId}-${countryId}-${key}`]: values,
@@ -164,27 +192,53 @@ export default function ProjectShowPage() {
 
     project.components?.forEach((component) => {
       component.questions?.forEach((question) => {
-        const countries = isCountryLevel(question.category) ? (project.countries || []) : [null];
-        const rowKeys = getRowKeys(question.category);
+        const entries = getCountryEntries(question, project.countries || []);
+        const { rows } = mapDataPoints(question.category);
 
-        countries.forEach((country) => {
-          const countryId = country?.id || "none";
-          rowKeys.forEach((rk) => {
-            const stateKey = `${question.id}-${countryId}-${rk.key}`;
+        if (entries.length > 0) {
+          entries.forEach((entry) => {
+            const countryId = entry.id || "none";
+            rows.forEach((row) => {
+              const stateKey = `${question.id}-${countryId}-${row.key}`;
+              const val = mergedState[stateKey];
+              const mov = mergedMoV[stateKey];
+
+              if (
+                (val !== undefined && val !== "") ||
+                (mov && mov.length > 0)
+              ) {
+                indicators.push({
+                  question_id: question.id,
+                  country_id: entry.id,
+                  key: row.key === "value" ? null : row.key,
+                  value: val || null,
+                  means_of_verification:
+                    mov && mov.length > 0 ? mov.join(", ") : null,
+                });
+              }
+            });
+          });
+        } else {
+          rows.forEach((row) => {
+            const stateKey = `${question.id}-none-${row.key}`;
             const val = mergedState[stateKey];
             const mov = mergedMoV[stateKey];
 
-            if ((val !== undefined && val !== "") || (mov && mov.length > 0)) {
+            if (
+              (val !== undefined && val !== "") ||
+              (mov && mov.length > 0)
+            ) {
               indicators.push({
                 question_id: question.id,
-                country_id: country?.id || null,
-                key: rk.key === "value" && question.category === "no_level" ? null : rk.key,
+                country_id: null,
+                key: null,
                 value: val || null,
-                means_of_verification: mov && mov.length > 0 ? mov.join(", ") : null,
+                means_of_verification:
+                  mov && mov.length > 0 ? mov.join(", ") : null,
               });
             }
           });
-        });
+        }
       });
     });
 
@@ -216,7 +270,9 @@ export default function ProjectShowPage() {
 
   if (isLoading) {
     return (
-      <div className="text-center py-12 text-gray-500">Loading project...</div>
+      <div className="text-center py-12 text-gray-500">
+        Loading project...
+      </div>
     );
   }
 
@@ -244,6 +300,18 @@ export default function ProjectShowPage() {
           Back to Projects
         </Link>
         <div className="flex items-center gap-2">
+          <Link href={`/projects/${id}/dashboard`}>
+            <Button variant="secondary" size="sm">
+              <BarChart3 className="w-4 h-4 mr-1 inline" />
+              Dashboard
+            </Button>
+          </Link>
+          <Link href={`/projects/${id}/reports`}>
+            <Button variant="secondary" size="sm">
+              <FileText className="w-4 h-4 mr-1 inline" />
+              Reports
+            </Button>
+          </Link>
           <Button
             variant="secondary"
             size="sm"
@@ -252,17 +320,16 @@ export default function ProjectShowPage() {
             <StickyNote className="w-4 h-4 mr-1 inline" />
             Notes
           </Button>
-          <Button variant="secondary" size="sm">
-            <Download className="w-4 h-4 mr-1 inline" />
-            Export
-          </Button>
+          <Link href={`/projects/${id}/export`}>
+            <Button variant="secondary" size="sm">
+              <Download className="w-4 h-4 mr-1 inline" />
+              Export
+            </Button>
+          </Link>
         </div>
       </div>
 
-      <PageHeading
-        title={project.name}
-        description="Performance Indicators"
-      />
+      <PageHeading title={project.name} description="Performance Indicators" />
 
       {/* Empty state */}
       {!hasData && (
@@ -288,7 +355,9 @@ export default function ProjectShowPage() {
           {/* Year Selector */}
           {years.length > 0 && (
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-medium text-gray-600 mr-2">Year:</span>
+              <span className="text-sm font-medium text-gray-600 mr-2">
+                Year:
+              </span>
               {years.map((year) => (
                 <button
                   key={year}
@@ -309,7 +378,9 @@ export default function ProjectShowPage() {
           {/* Quarter Selector */}
           {project.reporting_period === "quarterly" && (
             <div className="flex items-center gap-2 mb-6">
-              <span className="text-sm font-medium text-gray-600 mr-2">Quarter:</span>
+              <span className="text-sm font-medium text-gray-600 mr-2">
+                Quarter:
+              </span>
               {[1, 2, 3, 4].map((q) => (
                 <button
                   key={q}
@@ -339,9 +410,10 @@ export default function ProjectShowPage() {
                   <QuestionTable
                     key={question.id}
                     question={question}
-                    countries={
-                      isCountryLevel(question.category) ? (project.countries || []) : []
-                    }
+                    countries={getCountryEntries(
+                      question,
+                      project.countries || []
+                    )}
                     year={activeYear!}
                     quarter={activeQuarter}
                     formState={mergedState}
@@ -414,7 +486,10 @@ export default function ProjectShowPage() {
         title="Overwrite Existing Data?"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setShowOverwriteModal(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowOverwriteModal(false)}
+            >
               Cancel
             </Button>
             <Button variant="primary" onClick={confirmOverwrite}>
@@ -444,22 +519,33 @@ function QuestionTable({
   onMoVChange,
 }: {
   question: Question;
-  countries: Country[];
+  countries: CountryEntry[];
   year: number;
   quarter: number | null;
   formState: FormState;
   movState: MoVState;
-  onChange: (questionId: string, countryId: string, key: string, value: string) => void;
-  onMoVChange: (questionId: string, countryId: string, key: string, values: string[]) => void;
+  onChange: (
+    questionId: string,
+    countryId: string,
+    key: string,
+    value: string
+  ) => void;
+  onMoVChange: (
+    questionId: string,
+    countryId: string,
+    key: string,
+    values: string[]
+  ) => void;
 }) {
-  const dataPoints = getDataPoints(question.category);
-  const rowKeys = getRowKeys(question.category);
-  const hasCountries = isCountryLevel(question.category) && countries.length > 0;
+  const { headers, rows } = mapDataPoints(question.category);
+  const hasCountries = countries.length > 0;
 
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-800">{question.statement}</h4>
+        <h4 className="text-sm font-medium text-gray-800">
+          {question.statement}
+        </h4>
         <LockToggle questionId={question.id} year={year} quarter={quarter} />
       </div>
       <div className="overflow-x-auto">
@@ -471,16 +557,14 @@ function QuestionTable({
                   Country
                 </th>
               )}
-              {dataPoints
-                .filter((dp) => dp !== "Country")
-                .map((dp) => (
-                  <th
-                    key={dp}
-                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
-                  >
-                    {dp}
-                  </th>
-                ))}
+              {headers.map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                >
+                  {h}
+                </th>
+              ))}
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                 Baseline
               </th>
@@ -498,61 +582,92 @@ function QuestionTable({
           <tbody className="divide-y divide-gray-200">
             {hasCountries
               ? countries.map((country) =>
-                  rowKeys.map((rk) => {
-                    const stateKey = `${question.id}-${country.id}-${rk.key}`;
+                  rows.map((row, ri) => {
+                    const cid = country.id || "none";
+                    const stateKey = `${question.id}-${cid}-${row.key}`;
+                    const showCountry = ri === 0;
                     return (
-                      <tr key={`${country.id}-${rk.key}`}>
-                        <td className="px-3 py-2 text-gray-700">{country.name}</td>
-                        {rk.key !== "value" && (
-                          <td className="px-3 py-2 text-gray-700">{rk.label}</td>
-                        )}
+                      <tr key={`${cid}-${row.key}`}>
+                        <td className="px-3 py-2 text-gray-700 font-medium">
+                          {showCountry ? country.short_name : ""}
+                        </td>
+                        {row.cells.map((cell, cellIdx) => (
+                          <td
+                            key={cellIdx}
+                            className="px-3 py-2 text-gray-700"
+                          >
+                            {cell}
+                          </td>
+                        ))}
                         <td className="px-3 py-2 text-gray-500">
-                          {getBaselineValue(question, country.id, rk.key) || "--"}
+                          {getBaselineValue(
+                            question,
+                            country.id,
+                            row.key
+                          ) || "--"}
                         </td>
                         <td className="px-3 py-2 text-gray-500">
-                          {getTargetValue(question, country.id, rk.key, year) || "--"}
+                          {getTargetValue(
+                            question,
+                            country.id,
+                            row.key,
+                            year
+                          ) || "--"}
                         </td>
                         <td className="px-3 py-2">
                           <InputCell
                             question={question}
                             value={formState[stateKey] || ""}
-                            onChange={(val) => onChange(question.id, country.id, rk.key, val)}
+                            onChange={(val) =>
+                              onChange(question.id, cid, row.key, val)
+                            }
                           />
                         </td>
                         <td className="px-3 py-2">
                           <MoVSelect
                             selected={movState[stateKey] || []}
-                            onChange={(vals) => onMoVChange(question.id, country.id, rk.key, vals)}
+                            onChange={(vals) =>
+                              onMoVChange(question.id, cid, row.key, vals)
+                            }
                           />
                         </td>
                       </tr>
                     );
                   })
                 )
-              : rowKeys.map((rk) => {
-                  const stateKey = `${question.id}-none-${rk.key}`;
+              : rows.map((row) => {
+                  const stateKey = `${question.id}-none-${row.key}`;
                   return (
-                    <tr key={rk.key}>
-                      {rk.key !== "value" && (
-                        <td className="px-3 py-2 text-gray-700">{rk.label}</td>
-                      )}
+                    <tr key={row.key}>
+                      {row.cells.map((cell, cellIdx) => (
+                        <td
+                          key={cellIdx}
+                          className="px-3 py-2 text-gray-700"
+                        >
+                          {cell}
+                        </td>
+                      ))}
                       <td className="px-3 py-2 text-gray-500">
-                        {getBaselineValue(question, null, rk.key) || "--"}
+                        {getBaselineValue(question, null, row.key) || "--"}
                       </td>
                       <td className="px-3 py-2 text-gray-500">
-                        {getTargetValue(question, null, rk.key, year) || "--"}
+                        {getTargetValue(question, null, row.key, year) || "--"}
                       </td>
                       <td className="px-3 py-2">
                         <InputCell
                           question={question}
                           value={formState[stateKey] || ""}
-                          onChange={(val) => onChange(question.id, "none", rk.key, val)}
+                          onChange={(val) =>
+                            onChange(question.id, "none", row.key, val)
+                          }
                         />
                       </td>
                       <td className="px-3 py-2">
                         <MoVSelect
                           selected={movState[stateKey] || []}
-                          onChange={(vals) => onMoVChange(question.id, "none", rk.key, vals)}
+                          onChange={(vals) =>
+                            onMoVChange(question.id, "none", row.key, vals)
+                          }
                         />
                       </td>
                     </tr>
@@ -607,7 +722,9 @@ function InputCell({
         onChange={(e) => onChange(e.target.value)}
         className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
       />
-      {question.percentage && <span className="text-gray-500 text-sm">%</span>}
+      {question.percentage && (
+        <span className="text-gray-500 text-sm">%</span>
+      )}
     </div>
   );
 }

@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { AdminModelConfig } from "@/lib/admin-config";
+
+const PAGE_SIZE = 20;
 
 interface AdminTableProps {
   config: AdminModelConfig;
@@ -64,6 +67,10 @@ export function AdminTable({
   onDelete,
   deleting,
 }: AdminTableProps) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  const paged = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -84,7 +91,7 @@ export function AdminTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {data.length === 0 ? (
+            {paged.length === 0 ? (
               <tr>
                 <td
                   colSpan={config.columns.length + 1}
@@ -94,7 +101,7 @@ export function AdminTable({
                 </td>
               </tr>
             ) : (
-              data.map((row) => {
+              paged.map((row) => {
                 const id = String(row.id ?? "");
                 return (
                   <tr key={id} className="hover:bg-gray-50">
@@ -148,6 +155,34 @@ export function AdminTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 bg-gray-50">
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.length)} of {data.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1.5 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-gray-600 px-2">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-1.5 rounded text-gray-500 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

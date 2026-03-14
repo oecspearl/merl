@@ -94,7 +94,7 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
     labelPlural: "Projects",
     table: "projects",
     labelField: "name",
-    selectQuery: "*, countries_projects(country:countries(short_name))",
+    selectQuery: "*, countries_projects(country:countries(short_name)), created_by:users!projects_created_by_id_fkey(email), updated_by:users!projects_updated_by_id_fkey(email)",
     columns: [
       { key: "name", label: "Name" },
       { key: "donor", label: "Donor" },
@@ -107,6 +107,8 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
       },
       { key: "start_date", label: "Start", format: "date" },
       { key: "end_date", label: "End", format: "date" },
+      { key: "created_by.email", label: "Created By" },
+      { key: "updated_by.email", label: "Updated By" },
     ],
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
@@ -349,13 +351,14 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
     labelPlural: "Baselines",
     table: "baselines",
     labelField: "id",
-    selectQuery: "*, question:questions(statement), country:countries(name)",
+    selectQuery: "*, question:questions(statement), country:countries(name), created_by:users!baselines_created_by_id_fkey(email), updated_by:users!baselines_updated_by_id_fkey(email)",
     columns: [
       { key: "question.statement", label: "Question" },
       { key: "country.name", label: "Country" },
       { key: "key", label: "Key" },
       { key: "value", label: "Value" },
       { key: "status", label: "Status", format: "enum", enumMap: STATUS_ENUM },
+      { key: "updated_by.email", label: "Updated By" },
     ],
     fields: [
       {
@@ -403,7 +406,7 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
     labelPlural: "Targets",
     table: "targets",
     labelField: "id",
-    selectQuery: "*, question:questions(statement), country:countries(name)",
+    selectQuery: "*, question:questions(statement), country:countries(name), created_by:users!targets_created_by_id_fkey(email), updated_by:users!targets_updated_by_id_fkey(email)",
     columns: [
       { key: "question.statement", label: "Question" },
       { key: "country.name", label: "Country" },
@@ -411,6 +414,7 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
       { key: "year", label: "Year" },
       { key: "value", label: "Value" },
       { key: "status", label: "Status", format: "enum", enumMap: STATUS_ENUM },
+      { key: "updated_by.email", label: "Updated By" },
     ],
     fields: [
       {

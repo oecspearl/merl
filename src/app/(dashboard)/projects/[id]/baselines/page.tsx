@@ -8,35 +8,36 @@ import { useProject, useSaveBaselines } from "@/hooks/useProjects";
 import { PageHeading } from "@/components/ui/page-heading";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/modal";
-import { getDataPoints, titleize } from "@/lib/utils";
-import { TRAININGS, GENDERS, SUBJECTS, POSTS, EDROLES } from "@/types/constants";
+import { mapDataPoints } from "@/lib/utils";
 import type { Question, QuestionCategory, Country } from "@/types/database";
 
 type FormState = Record<string, string>;
 
-function getRowKeys(category: QuestionCategory): { label: string; key: string }[] {
-  switch (category) {
-    case "country_training_gender":
-      return TRAININGS.flatMap((t) =>
-        GENDERS.map((g) => ({ label: `${titleize(t)} - ${titleize(g)}`, key: `${t}-${g}` }))
-      );
-    case "country_subject":
-      return SUBJECTS.map((s) => ({ label: titleize(s), key: s }));
-    case "country_gender":
-      return GENDERS.map((g) => ({ label: titleize(g), key: g }));
-    case "country_post":
-      return POSTS.map((p) => ({ label: titleize(p), key: p }));
-    case "country_gender_edrole":
-      return GENDERS.flatMap((g) =>
-        EDROLES.map((e) => ({ label: `${titleize(g)} - ${titleize(e)}`, key: `${g}-${e}` }))
-      );
-    default:
-      return [{ label: "Value", key: "value" }];
-  }
-}
+/** A country row entry — real country or the OECS region placeholder (id = null) */
+type CountryEntry = { id: string | null; name: string; short_name: string };
 
 function isCountryLevel(category: QuestionCategory): boolean {
   return category !== "no_level";
+}
+
+/** Build country list, appending the OECS region row when question.region is true */
+function getCountryEntries(
+  question: Question,
+  countries: Country[]
+): CountryEntry[] {
+  if (!isCountryLevel(question.category)) return [];
+  const entries: CountryEntry[] = countries.map((c) => ({
+    id: c.id,
+    name: c.name,
+    short_name: c.short_name,
+  }));
+  if (question.region) {
+    const regionName =
+      (countries[0] as Country & { region?: { name: string } })?.region?.name ||
+      "OECS";
+    entries.push({ id: null, name: regionName, short_name: regionName });
+  }
+  return entries;
 }
 
 export default function BaselinesPage() {
@@ -62,13 +63,17 @@ export default function BaselinesPage() {
 
   const [formState, setFormState] = useState<FormState>({});
 
-  // Merge initial state with user edits
   const mergedState = useMemo(
     () => ({ ...initialFormState, ...formState }),
     [initialFormState, formState]
   );
 
-  const handleChange = (questionId: string, countryId: string, key: string, value: string) => {
+  const handleChange = (
+    questionId: string,
+    countryId: string,
+    key: string,
+    value: string
+  ) => {
     setFormState((prev) => ({
       ...prev,
       [`${questionId}-${countryId}-${key}`]: value,
@@ -88,25 +93,42 @@ export default function BaselinesPage() {
 
     project.components?.forEach((component) => {
       component.questions?.forEach((question) => {
-        const countries = isCountryLevel(question.category) ? (project.countries || []) : [null];
-        const rowKeys = getRowKeys(question.category);
+        const entries = getCountryEntries(question, project.countries || []);
+        const { rows } = mapDataPoints(question.category);
 
-        countries.forEach((country) => {
-          const countryId = country?.id || "none";
-          rowKeys.forEach((rk) => {
-            const stateKey = `${question.id}-${countryId}-${rk.key}`;
+        if (entries.length > 0) {
+          entries.forEach((entry) => {
+            const countryId = entry.id || "none";
+            rows.forEach((row) => {
+              const stateKey = `${question.id}-${countryId}-${row.key}`;
+              const val = mergedState[stateKey];
+              if (val !== undefined && val !== "") {
+                baselines.push({
+                  question_id: question.id,
+                  country_id: entry.id,
+                  key: row.key === "value" ? null : row.key,
+                  value: val,
+                  status,
+                });
+              }
+            });
+          });
+        } else {
+          // no_level questions — single row with no country
+          rows.forEach((row) => {
+            const stateKey = `${question.id}-none-${row.key}`;
             const val = mergedState[stateKey];
             if (val !== undefined && val !== "") {
               baselines.push({
                 question_id: question.id,
-                country_id: country?.id || null,
-                key: rk.key === "value" && question.category === "no_level" ? null : rk.key,
+                country_id: null,
+                key: null,
                 value: val,
                 status,
               });
             }
           });
-        });
+        }
       });
     });
 
@@ -139,10 +161,7 @@ export default function BaselinesPage() {
         Back to Projects
       </Link>
 
-      <PageHeading
-        title="Baselines"
-        description={project.name}
-      />
+      <PageHeading title="Baselines" description={project.name} />
 
       <div className="space-y-6">
         {project.components?.map((component) => (
@@ -155,7 +174,7 @@ export default function BaselinesPage() {
               <QuestionTable
                 key={question.id}
                 question={question}
-                countries={isCountryLevel(question.category) ? (project.countries || []) : []}
+                countries={getCountryEntries(question, project.countries || [])}
                 formState={mergedState}
                 onChange={handleChange}
               />
@@ -195,17 +214,23 @@ function QuestionTable({
   onChange,
 }: {
   question: Question;
-  countries: Country[];
+  countries: CountryEntry[];
   formState: FormState;
-  onChange: (questionId: string, countryId: string, key: string, value: string) => void;
+  onChange: (
+    questionId: string,
+    countryId: string,
+    key: string,
+    value: string
+  ) => void;
 }) {
-  const dataPoints = getDataPoints(question.category);
-  const rowKeys = getRowKeys(question.category);
-  const hasCountries = isCountryLevel(question.category) && countries.length > 0;
+  const { headers, rows } = mapDataPoints(question.category);
+  const hasCountries = countries.length > 0;
 
   return (
     <div className="mb-6">
-      <h4 className="text-sm font-medium text-gray-800 mb-2">{question.statement}</h4>
+      <h4 className="text-sm font-medium text-gray-800 mb-2">
+        {question.statement}
+      </h4>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm border border-gray-200 rounded">
           <thead className="bg-gray-50">
@@ -215,50 +240,71 @@ function QuestionTable({
                   Country
                 </th>
               )}
-              {dataPoints
-                .filter((dp) => dp !== "Country")
-                .map((dp) => (
-                  <th
-                    key={dp}
-                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
-                  >
-                    {dp}
-                  </th>
-                ))}
+              {headers.map((h) => (
+                <th
+                  key={h}
+                  className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"
+                >
+                  {h}
+                </th>
+              ))}
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                Value {question.percentage && "(%)"}
+                Baseline {question.percentage && "(%)"}
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {hasCountries
               ? countries.map((country) =>
-                  rowKeys.map((rk) => (
-                    <tr key={`${country.id}-${rk.key}`}>
-                      <td className="px-3 py-2 text-gray-700">{country.name}</td>
-                      {rk.key !== "value" && (
-                        <td className="px-3 py-2 text-gray-700">{rk.label}</td>
-                      )}
-                      <td className="px-3 py-2">
-                        <InputCell
-                          question={question}
-                          value={formState[`${question.id}-${country.id}-${rk.key}`] || ""}
-                          onChange={(val) => onChange(question.id, country.id, rk.key, val)}
-                        />
-                      </td>
-                    </tr>
-                  ))
+                  rows.map((row, ri) => {
+                    const cid = country.id || "none";
+                    const showCountry = ri === 0; // only first row of country group
+                    return (
+                      <tr key={`${cid}-${row.key}`}>
+                        <td className="px-3 py-2 text-gray-700 font-medium">
+                          {showCountry ? country.short_name : ""}
+                        </td>
+                        {row.cells.map((cell, cellIdx) => (
+                          <td
+                            key={cellIdx}
+                            className="px-3 py-2 text-gray-700"
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2">
+                          <InputCell
+                            question={question}
+                            value={
+                              formState[
+                                `${question.id}-${cid}-${row.key}`
+                              ] || ""
+                            }
+                            onChange={(val) =>
+                              onChange(question.id, cid, row.key, val)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )
-              : rowKeys.map((rk) => (
-                  <tr key={rk.key}>
-                    {rk.key !== "value" && (
-                      <td className="px-3 py-2 text-gray-700">{rk.label}</td>
-                    )}
+              : rows.map((row) => (
+                  <tr key={row.key}>
+                    {row.cells.map((cell, cellIdx) => (
+                      <td key={cellIdx} className="px-3 py-2 text-gray-700">
+                        {cell}
+                      </td>
+                    ))}
                     <td className="px-3 py-2">
                       <InputCell
                         question={question}
-                        value={formState[`${question.id}-none-${rk.key}`] || ""}
-                        onChange={(val) => onChange(question.id, "none", rk.key, val)}
+                        value={
+                          formState[`${question.id}-none-${row.key}`] || ""
+                        }
+                        onChange={(val) =>
+                          onChange(question.id, "none", row.key, val)
+                        }
                       />
                     </td>
                   </tr>
@@ -314,7 +360,9 @@ function InputCell({
         onChange={(e) => onChange(e.target.value)}
         className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
       />
-      {question.percentage && <span className="text-gray-500 text-sm">%</span>}
+      {question.percentage && (
+        <span className="text-gray-500 text-sm">%</span>
+      )}
     </div>
   );
 }

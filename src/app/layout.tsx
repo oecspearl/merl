@@ -9,6 +9,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "OECS MERL Reporting",
   description: "Monitoring, Evaluation, Reporting & Learning Platform",
+  icons: {
+    icon: "/oecslogo.png",
+  },
 };
 
 export default function RootLayout({
