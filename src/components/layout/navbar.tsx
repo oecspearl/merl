@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { LogOut, Upload, ChevronDown } from "lucide-react";
+import { LogOut, Shield, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useUser } from "@/hooks/useUser";
 import { NAV_ROUTES } from "@/types/constants";
@@ -85,12 +85,12 @@ export function Navbar() {
             <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
               {isSuperAdmin && (
                 <Link
-                  href="/admin/user-imports"
+                  href="/admin"
                   onClick={() => setDropdownOpen(false)}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
-                  <Upload className="w-4 h-4" />
-                  Import Users
+                  <Shield className="w-4 h-4" />
+                  Admin
                 </Link>
               )}
               <button
