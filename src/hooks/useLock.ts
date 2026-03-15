@@ -44,33 +44,11 @@ export function useLock(questionId: string, year: number, quarter: number | null
     }
   }, [questionId, year, quarter, user?.id]);
 
-  // Subscribe to realtime lock changes
+  // Check lock on mount (no realtime — avoids WebSocket spam)
   useEffect(() => {
     if (!user) return;
-
     checkLock();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`locks:${questionId}:${year}:${quarter}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "locks",
-          filter: `question_id=eq.${questionId}`,
-        },
-        () => {
-          checkLock();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [questionId, year, quarter, user, checkLock]);
+  }, [user, checkLock]);
 
   // Toggle lock
   const toggleLock = useCallback(async () => {
@@ -80,7 +58,6 @@ export function useLock(questionId: string, year: number, quarter: number | null
 
     try {
       if (lockInfo.state === "unlocked") {
-        // Acquire lock
         const { error } = await supabase.from("locks").insert({
           user_id: user.id,
           question_id: questionId,
@@ -96,7 +73,6 @@ export function useLock(questionId: string, year: number, quarter: number | null
           }
         }
       } else if (lockInfo.state === "locked") {
-        // Release lock
         const { error } = await supabase
           .from("locks")
           .delete()

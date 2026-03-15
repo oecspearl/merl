@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -14,8 +14,12 @@ export function useUser() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
     const supabase = createClient();
 
     async function getUser() {
@@ -40,10 +44,13 @@ export function useUser() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        setProfile(null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only react to sign-in and sign-out, not token refreshes
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          setProfile(null);
+        }
       }
     });
 
