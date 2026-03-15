@@ -164,13 +164,13 @@ export default function BaselinesPage() {
       <PageHeading title="Baselines" description={project.name} />
 
       <div className="space-y-6">
-        {project.components?.map((component) => (
+        {[...(project.components || [])].sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true })).map((component) => (
           <Collapsible
             key={component.id}
             title={component.title}
             subtitle={component.objective || undefined}
           >
-            {component.questions?.map((question) => (
+            {[...(component.questions || [])].sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true })).map((question) => (
               <QuestionTable
                 key={question.id}
                 question={question}
@@ -352,12 +352,26 @@ function InputCell({
     );
   }
 
+  // For percentage questions, display as whole percentage (0.76 → 76) and store as decimal
+  const displayValue = question.percentage && value
+    ? String(Math.round(parseFloat(value) * 100 * 100) / 100)
+    : value;
+
+  const handleNumericChange = (input: string) => {
+    if (question.percentage) {
+      const num = parseFloat(input);
+      onChange(isNaN(num) ? "" : String(num / 100));
+    } else {
+      onChange(input);
+    }
+  };
+
   return (
     <div className="flex items-center gap-1">
       <input
         type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={displayValue}
+        onChange={(e) => handleNumericChange(e.target.value)}
         className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
       />
       {question.percentage && (

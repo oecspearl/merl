@@ -400,13 +400,13 @@ export default function ProjectShowPage() {
 
           {/* Components and Questions */}
           <div className="space-y-6">
-            {project.components?.map((component) => (
+            {[...(project.components || [])].sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true })).map((component) => (
               <Collapsible
                 key={component.id}
                 title={component.title}
                 subtitle={component.objective || undefined}
               >
-                {component.questions?.map((question) => (
+                {[...(component.questions || [])].sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true })).map((question) => (
                   <QuestionTable
                     key={question.id}
                     question={question}

@@ -110,7 +110,7 @@ export default function ReportsPage() {
 
         {/* Charts by Component */}
         {hasSubmittedData && activeYear ? (
-          (project.components ?? []).map((component) => (
+          [...(project.components ?? [])].sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true })).map((component) => (
             <Collapsible
               key={component.id}
               title={component.title}
@@ -118,7 +118,8 @@ export default function ReportsPage() {
               defaultOpen
             >
               <div className="space-y-8">
-                {(component.questions ?? [])
+                {[...(component.questions ?? [])]
+                  .sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true }))
                   .filter((q) => q.input_type !== "boolean")
                   .filter((q) => q.category !== "no_level")
                   .map((question) => (
