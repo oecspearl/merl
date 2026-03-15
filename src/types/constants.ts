@@ -4,6 +4,8 @@ export const TRAININGS = ["ECE", "SEN"] as const;
 
 export const GENDERS = ["male", "female"] as const;
 
+export const LEVELS = ["pre_primary", "primary"] as const;
+
 export const SUBJECTS = [
   "language_arts",
   "science",
@@ -11,13 +13,12 @@ export const SUBJECTS = [
   "mathematics",
 ] as const;
 
-export const POSTS = ["principal", "deputy_principal"] as const;
+export const POSTS = ["principal", "dty_principal", "other_leaders"] as const;
 
 export const EDROLES = [
   "ed_officers",
-  "principal_teacher",
-  "deputy_principal",
-  "other_leader",
+  "principals",
+  "teachers",
 ] as const;
 
 export const MEANS_OF_VERIFICATION = [

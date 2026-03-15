@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useProject } from "@/hooks/useProjects";
 import { Collapsible } from "@/components/ui/collapsible";
-import { getProjectYears, cn } from "@/lib/utils";
+import { getProjectYears, cn, activeQuestions } from "@/lib/utils";
 import { QuestionCharts } from "@/components/charts/question-charts";
 
 export default function ReportsPage() {
@@ -118,8 +118,7 @@ export default function ReportsPage() {
               defaultOpen
             >
               <div className="space-y-8">
-                {[...(component.questions ?? [])]
-                  .sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true }))
+                {activeQuestions(component.questions)
                   .filter((q) => q.input_type !== "boolean")
                   .filter((q) => q.category !== "no_level")
                   .map((question) => (

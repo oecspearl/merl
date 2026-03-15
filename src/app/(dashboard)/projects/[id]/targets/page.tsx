@@ -8,7 +8,8 @@ import { useProject, useSaveTargets } from "@/hooks/useProjects";
 import { PageHeading } from "@/components/ui/page-heading";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/modal";
-import { mapDataPoints, getProjectYears, cn } from "@/lib/utils";
+import { mapDataPoints, getProjectYears, cn, activeQuestions } from "@/lib/utils";
+import { useDimensions } from "@/hooks/useDimensions";
 import type { Question, QuestionCategory, Country } from "@/types/database";
 
 type FormState = Record<string, string>;
@@ -56,6 +57,7 @@ export default function TargetsPage() {
   const params = useParams();
   const id = params.id as string;
   const { data: project, isLoading, error } = useProject(id);
+  const { data: dims } = useDimensions();
   const saveTargets = useSaveTargets();
 
   const years = useMemo(
@@ -74,7 +76,7 @@ export default function TargetsPage() {
     if (!project) return {};
     const state: FormState = {};
     project.components?.forEach((component) => {
-      component.questions?.forEach((question) => {
+      activeQuestions(component.questions).forEach((question) => {
         question.targets?.forEach((target) => {
           const countryPart = target.country_id || "none";
           const keyPart = target.key || "value";
@@ -119,9 +121,9 @@ export default function TargetsPage() {
     }> = [];
 
     project.components?.forEach((component) => {
-      component.questions?.forEach((question) => {
+      activeQuestions(component.questions).forEach((question) => {
         const entries = getCountryEntries(question, project.countries || []);
-        const { rows } = mapDataPoints(question.category);
+        const { rows } = mapDataPoints(question.category, dims);
 
         if (entries.length > 0) {
           entries.forEach((entry) => {
@@ -219,13 +221,14 @@ export default function TargetsPage() {
               title={component.title}
               subtitle={component.objective || undefined}
             >
-              {[...(component.questions || [])].sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true })).map((question) => (
+              {activeQuestions(component.questions).map((question) => (
                 <QuestionTable
                   key={question.id}
                   question={question}
                   countries={getCountryEntries(question, project.countries || [])}
                   year={activeYear}
                   formState={mergedState}
+                  dims={dims}
                   onChange={handleChange}
                 />
               ))}
@@ -263,12 +266,14 @@ function QuestionTable({
   countries,
   year,
   formState,
+  dims,
   onChange,
 }: {
   question: Question;
   countries: CountryEntry[];
   year: string;
   formState: FormState;
+  dims?: Record<string, string[]>;
   onChange: (
     questionId: string,
     countryId: string,
@@ -277,7 +282,7 @@ function QuestionTable({
     value: string
   ) => void;
 }) {
-  const { headers, rows } = mapDataPoints(question.category);
+  const { headers, rows } = mapDataPoints(question.category, dims);
   const hasCountries = countries.length > 0;
 
   return (
@@ -424,15 +429,21 @@ function InputCell({
     );
   }
 
+  // Special characters (~, -, .) represent N/A or missing data — pass through as-is
+  const isSpecial = (v: string) => /^[~\-.]$/.test(v.trim());
+
   // For percentage questions, display as whole percentage (0.76 → 76) and store as decimal
-  const displayValue = question.percentage && value
+  const displayValue = isSpecial(value) ? value
+    : question.percentage && value
     ? String(Math.round(parseFloat(value) * 100 * 100) / 100)
     : value;
 
-  const handleNumericChange = (input: string) => {
-    if (question.percentage) {
+  const handleChange = (input: string) => {
+    if (isSpecial(input) || input === "") {
+      onChange(input);
+    } else if (question.percentage) {
       const num = parseFloat(input);
-      onChange(isNaN(num) ? "" : String(num / 100));
+      onChange(isNaN(num) ? input : String(num / 100));
     } else {
       onChange(input);
     }
@@ -441,9 +452,10 @@ function InputCell({
   return (
     <div className="flex items-center gap-1">
       <input
-        type="number"
+        type="text"
+        inputMode="decimal"
         value={displayValue}
-        onChange={(e) => handleNumericChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
       />
       {question.percentage && (

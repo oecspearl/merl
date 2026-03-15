@@ -86,7 +86,7 @@ export function QuestionCharts({
             groupKey="training-gender"
             showTrainingFilter
             showGenderFilter
-            title="Time Series by Training & Gender"
+            title="Time Series by Training & Sex"
           />
           <TimeSeriesChart
             data={filteredData}
@@ -109,7 +109,7 @@ export function QuestionCharts({
             groupKey="gender-role"
             showRoleFilter
             showGenderFilter
-            title="Time Series by Gender & Role"
+            title="Time Series by Sex & Role"
           />
           <TimeSeriesChart
             data={filteredData}

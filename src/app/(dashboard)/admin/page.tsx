@@ -11,6 +11,8 @@ import {
   FileBarChart,
   Target,
   Crosshair,
+  LayoutGrid,
+  SlidersHorizontal,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -49,6 +51,20 @@ const MODELS_TO_COUNT: {
     table: "questions",
     icon: HelpCircle,
     color: "bg-indigo-50 text-indigo-600 border-indigo-200",
+  },
+  {
+    slug: "categories",
+    label: "Categories",
+    table: "categories",
+    icon: LayoutGrid,
+    color: "bg-teal-50 text-teal-600 border-teal-200",
+  },
+  {
+    slug: "dimensions",
+    label: "Dimensions",
+    table: "dimensions",
+    icon: SlidersHorizontal,
+    color: "bg-violet-50 text-violet-600 border-violet-200",
   },
   {
     slug: "countries",

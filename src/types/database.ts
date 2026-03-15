@@ -54,7 +54,9 @@ export type QuestionCategory =
   | "country_subject"
   | "country_gender"
   | "country_post"
-  | "country_gender_edrole";
+  | "country_gender_edrole"
+  | "level_country_edrole_gender"
+  | "country_post_gender";
 
 export const CATEGORY_MAP: Record<QuestionCategory, number> = {
   no_level: 0,
@@ -64,9 +66,13 @@ export const CATEGORY_MAP: Record<QuestionCategory, number> = {
   country_gender: 4,
   country_post: 5,
   country_gender_edrole: 6,
+  level_country_edrole_gender: 7,
+  country_post_gender: 8,
 };
 
 export type InputType = "number" | "boolean";
+
+export type QuestionStatus = "active" | "removed";
 
 export interface Question {
   id: string;
@@ -76,6 +82,7 @@ export interface Question {
   input_type: InputType;
   percentage: boolean;
   region: boolean;
+  status: QuestionStatus;
   created_at: string;
   updated_at: string;
   // Joined data

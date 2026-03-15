@@ -111,7 +111,7 @@ export function TimeSeriesChart({
             onChange={(e) => setGender(e.target.value)}
             className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white"
           >
-            <option value="">All Genders</option>
+            <option value="">All</option>
             {genderOptions.map((g) => (
               <option key={g} value={g}>
                 {g}

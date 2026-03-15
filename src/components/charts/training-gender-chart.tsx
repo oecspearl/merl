@@ -139,7 +139,7 @@ export function TrainingGenderColumnChart({
           className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white"
         >
           <option value="training-per-gender">Sort By Training</option>
-          <option value="gender-per-training">Sort By Gender</option>
+          <option value="gender-per-training">Sort By Sex</option>
         </select>
       </div>
       <ResponsiveContainer width="100%" height={320}>

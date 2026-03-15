@@ -1,5 +1,5 @@
-import { QuestionCategory } from "@/types/database";
-import { TRAININGS, GENDERS, SUBJECTS, POSTS, EDROLES } from "@/types/constants";
+import { QuestionCategory, Question } from "@/types/database";
+import { TRAININGS, GENDERS, LEVELS, SUBJECTS, POSTS, EDROLES } from "@/types/constants";
 
 // Maps for converting integer DB values to string enum values
 const CATEGORY_VALUES: QuestionCategory[] = [
@@ -10,12 +10,21 @@ const CATEGORY_VALUES: QuestionCategory[] = [
   "country_gender",
   "country_post",
   "country_gender_edrole",
+  "level_country_edrole_gender",
+  "country_post_gender",
 ];
 
 const INPUT_TYPE_VALUES = ["number", "boolean"] as const;
 const REPORTING_PERIOD_VALUES = ["yearly", "quarterly"] as const;
 const FISCAL_YEAR_VALUES = ["july_to_june", "october_to_september"] as const;
 const STATUS_VALUES = ["draft", "submitted"] as const;
+
+/** Filter out questions with status 'removed' and sort by statement */
+export function activeQuestions(questions: Question[] | undefined): Question[] {
+  return [...(questions || [])]
+    .filter((q) => q.status !== "removed")
+    .sort((a, b) => (a.statement ?? "").localeCompare(b.statement ?? "", undefined, { numeric: true }));
+}
 
 function mapInt<T>(value: unknown, mapping: readonly T[], fallback: T): T {
   if (typeof value === "string" && (mapping as readonly unknown[]).includes(value)) return value as T;
@@ -82,7 +91,7 @@ function normalizeProjectResponse(pr: any): any {
 /**
  * Convert question category to data point column headers.
  * Mirrors Rails Question#data_points method.
- * e.g., "country_gender" → ["Country", "Gender"]
+ * e.g., "country_gender" → ["Country", "Sex"]
  */
 export function getDataPoints(category: QuestionCategory | null): string[] {
   if (!category || category === "no_level") return [];
@@ -192,79 +201,109 @@ export interface DataRow {
   cells: string[];  // one entry per non-Country data point column
 }
 
+/** Dimension values map: dimension name → array of display values */
+export type DimensionMap = Record<string, string[]>;
+
+// Fallback values when dimensions haven't loaded from DB yet
+const FALLBACK_DIMS: DimensionMap = {
+  sex: GENDERS.map(titleize),
+  training: [...TRAININGS],
+  level: LEVELS.map(titleize),
+  edrole: EDROLES.map(titleize),
+  post: POSTS.map(titleize),
+  subject: SUBJECTS.map(titleize),
+};
+
+function dim(dims: DimensionMap | undefined, key: string): string[] {
+  return dims?.[key] ?? FALLBACK_DIMS[key] ?? [];
+}
+
 /**
  * Build structured rows for a question category.
  * Returns the column headers (excluding "Country") and the row data.
- * Mirrors Rails map_data_points — groups first-level labels so they
- * appear only on the first row of each sub-group.
+ * When `dims` is provided, uses DB-driven dimension values;
+ * otherwise falls back to hardcoded constants.
  */
-export function mapDataPoints(category: QuestionCategory): {
+export function mapDataPoints(
+  category: QuestionCategory,
+  dims?: DimensionMap,
+): {
   headers: string[];
   rows: DataRow[];
 } {
   switch (category) {
     case "country_training_gender": {
       const rows: DataRow[] = [];
-      for (const t of TRAININGS) {
-        let firstOfTraining = true;
-        for (const g of GENDERS) {
-          rows.push({
-            key: `${t}-${g}`,
-            cells: [
-              firstOfTraining ? t : "",
-              titleize(g),
-            ],
-          });
-          firstOfTraining = false;
+      for (const t of dim(dims, "training")) {
+        let first = true;
+        for (const g of dim(dims, "sex")) {
+          rows.push({ key: `${t}-${g}`, cells: [first ? t : "", g] });
+          first = false;
         }
       }
-      return { headers: ["Training", "Gender"], rows };
+      return { headers: ["Training", "Sex"], rows };
     }
 
     case "country_gender_edrole": {
       const rows: DataRow[] = [];
-      for (const g of GENDERS) {
-        let firstOfGender = true;
-        for (const e of EDROLES) {
-          rows.push({
-            key: `${g}-${e}`,
-            cells: [
-              firstOfGender ? titleize(g) : "",
-              titleize(e),
-            ],
-          });
-          firstOfGender = false;
+      for (const g of dim(dims, "sex")) {
+        let first = true;
+        for (const e of dim(dims, "edrole")) {
+          rows.push({ key: `${g}-${e}`, cells: [first ? g : "", e] });
+          first = false;
         }
       }
-      return { headers: ["Gender", "Edrole"], rows };
+      return { headers: ["Sex", "Ed. Role"], rows };
     }
 
     case "country_gender":
       return {
-        headers: ["Gender"],
-        rows: GENDERS.map((g) => ({
-          key: g,
-          cells: [titleize(g)],
-        })),
+        headers: ["Sex"],
+        rows: dim(dims, "sex").map((g) => ({ key: g, cells: [g] })),
       };
 
     case "country_post":
       return {
         headers: ["Post"],
-        rows: POSTS.map((p) => ({
-          key: p,
-          cells: [titleize(p)],
-        })),
+        rows: dim(dims, "post").map((p) => ({ key: p, cells: [p] })),
       };
 
     case "country_subject":
       return {
         headers: ["Subject"],
-        rows: SUBJECTS.map((s) => ({
-          key: s,
-          cells: [titleize(s)],
-        })),
+        rows: dim(dims, "subject").map((s) => ({ key: s, cells: [s] })),
       };
+
+    case "level_country_edrole_gender": {
+      const rows: DataRow[] = [];
+      for (const l of dim(dims, "level")) {
+        let firstLevel = true;
+        for (const e of dim(dims, "edrole")) {
+          let firstRole = true;
+          for (const g of dim(dims, "sex")) {
+            rows.push({
+              key: `${l}-${e}-${g}`,
+              cells: [firstLevel ? l : "", firstRole ? e : "", g],
+            });
+            firstLevel = false;
+            firstRole = false;
+          }
+        }
+      }
+      return { headers: ["Level", "Ed. Role", "Sex"], rows };
+    }
+
+    case "country_post_gender": {
+      const rows: DataRow[] = [];
+      for (const p of dim(dims, "post")) {
+        let first = true;
+        for (const g of dim(dims, "sex")) {
+          rows.push({ key: `${p}-${g}`, cells: [first ? p : "", g] });
+          first = false;
+        }
+      }
+      return { headers: ["Post", "Sex"], rows };
+    }
 
     case "country":
       return { headers: [], rows: [{ key: "value", cells: [] }] };

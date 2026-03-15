@@ -8,7 +8,8 @@ import { useProject, useSavePerformanceIndicators } from "@/hooks/useProjects";
 import { PageHeading } from "@/components/ui/page-heading";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Modal, Button } from "@/components/ui/modal";
-import { mapDataPoints, getProjectYears, getCurrentQuarter, cn } from "@/lib/utils";
+import { mapDataPoints, getProjectYears, getCurrentQuarter, cn, activeQuestions } from "@/lib/utils";
+import { useDimensions } from "@/hooks/useDimensions";
 import { MEANS_OF_VERIFICATION } from "@/types/constants";
 import { LockToggle } from "@/components/ui/lock-toggle";
 import type { Question, QuestionCategory, Country, ProjectResponse } from "@/types/database";
@@ -85,6 +86,7 @@ export default function ProjectShowPage() {
   const params = useParams();
   const id = params.id as string;
   const { data: project, isLoading, error } = useProject(id);
+  const { data: dims } = useDimensions();
   const saveIndicators = useSavePerformanceIndicators();
 
   const years = useMemo(
@@ -191,9 +193,9 @@ export default function ProjectShowPage() {
     }> = [];
 
     project.components?.forEach((component) => {
-      component.questions?.forEach((question) => {
+      activeQuestions(component.questions).forEach((question) => {
         const entries = getCountryEntries(question, project.countries || []);
-        const { rows } = mapDataPoints(question.category);
+        const { rows } = mapDataPoints(question.category, dims);
 
         if (entries.length > 0) {
           entries.forEach((entry) => {
@@ -406,7 +408,7 @@ export default function ProjectShowPage() {
                 title={component.title}
                 subtitle={component.objective || undefined}
               >
-                {[...(component.questions || [])].sort((a, b) => (a.statement ?? '').localeCompare(b.statement ?? '', undefined, { numeric: true })).map((question) => (
+                {activeQuestions(component.questions).map((question) => (
                   <QuestionTable
                     key={question.id}
                     question={question}
@@ -418,6 +420,7 @@ export default function ProjectShowPage() {
                     quarter={activeQuarter}
                     formState={mergedState}
                     movState={mergedMoV}
+                    dims={dims}
                     onChange={handleChange}
                     onMoVChange={handleMoVChange}
                   />
@@ -515,6 +518,7 @@ function QuestionTable({
   quarter,
   formState,
   movState,
+  dims,
   onChange,
   onMoVChange,
 }: {
@@ -524,6 +528,7 @@ function QuestionTable({
   quarter: number | null;
   formState: FormState;
   movState: MoVState;
+  dims?: Record<string, string[]>;
   onChange: (
     questionId: string,
     countryId: string,
@@ -537,7 +542,7 @@ function QuestionTable({
     values: string[]
   ) => void;
 }) {
-  const { headers, rows } = mapDataPoints(question.category);
+  const { headers, rows } = mapDataPoints(question.category, dims);
   const hasCountries = countries.length > 0;
 
   return (
@@ -717,7 +722,8 @@ function InputCell({
   return (
     <div className="flex items-center gap-1">
       <input
-        type="number"
+        type="text"
+        inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"

@@ -137,7 +137,7 @@ export function GenderRoleColumnChart({
           className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white"
         >
           <option value="role-per-gender">Sort By Ed Roles</option>
-          <option value="gender-per-role">Sort By Gender</option>
+          <option value="gender-per-role">Sort By Sex</option>
         </select>
       </div>
       <ResponsiveContainer width="100%" height={320}>

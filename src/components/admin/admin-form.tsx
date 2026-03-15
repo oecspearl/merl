@@ -25,7 +25,11 @@ export function AdminForm({ config, record, mode }: AdminFormProps) {
     const initial: Record<string, unknown> = {};
     for (const field of config.fields) {
       if (mode === "edit" && record) {
-        initial[field.name] = record[field.name] ?? field.defaultValue ?? "";
+        let val = record[field.name] ?? field.defaultValue ?? "";
+        if (field.storeAsJson && val != null && typeof val === "object") {
+          val = JSON.stringify(val);
+        }
+        initial[field.name] = val;
       } else {
         initial[field.name] = field.defaultValue ?? "";
       }
@@ -95,6 +99,8 @@ export function AdminForm({ config, record, mode }: AdminFormProps) {
 
         if (field.type === "checkbox") {
           val = Boolean(val);
+        } else if (field.storeAsJson && val != null && val !== "") {
+          try { val = JSON.parse(String(val)); } catch { /* keep as string */ }
         } else if (field.storeAsNumber && val !== "" && val != null) {
           val = parseInt(String(val), 10);
         } else if (field.type === "number" && val !== "" && val != null) {
@@ -219,9 +225,7 @@ function FieldInput({
             required={field.required}
             className={baseClass}
           >
-            {(field.nullable || !field.required) && (
-              <option value="">— None —</option>
-            )}
+            <option value="">— Select —</option>
             {options.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}

@@ -29,6 +29,7 @@ export interface AdminField {
   placeholder?: string;
   defaultValue?: string | number | boolean | null;
   storeAsNumber?: boolean;
+  storeAsJson?: boolean;
   nullable?: boolean;
 }
 
@@ -52,11 +53,13 @@ export interface AdminModelConfig {
 export const CATEGORY_ENUM: Record<number, string> = {
   0: "No Level",
   1: "Country",
-  2: "Country Training Gender",
+  2: "Country Training Sex",
   3: "Country Subject",
-  4: "Country Gender",
+  4: "Country Sex",
   5: "Country Post",
-  6: "Country Gender Edrole",
+  6: "Country Sex Edrole (deprecated)",
+  7: "Level Country Edrole Sex",
+  8: "Country Post Sex",
 };
 
 export const INPUT_TYPE_ENUM: Record<number, string> = {
@@ -181,15 +184,13 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
     labelPlural: "Questions",
     table: "questions",
     labelField: "statement",
-    selectQuery: "*, component:components(title, project:projects(name))",
+    selectQuery: "*, component:components(title, project:projects(name)), category_obj:categories(label)",
     columns: [
       { key: "statement", label: "Statement" },
       { key: "component.title", label: "Component" },
       {
-        key: "category",
+        key: "category_obj.label",
         label: "Category",
-        format: "enum",
-        enumMap: CATEGORY_ENUM,
       },
       {
         key: "input_type",
@@ -216,9 +217,12 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
         name: "category",
         label: "Category",
         type: "select",
-        options: enumToOptions(CATEGORY_ENUM),
         storeAsNumber: true,
-        defaultValue: 0,
+        relation: {
+          table: "categories",
+          valueField: "id",
+          labelField: "label",
+        },
       },
       {
         name: "input_type",
@@ -242,6 +246,56 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
       },
     ],
     orderBy: { column: "created_at", ascending: false },
+    canCreate: true,
+    canEdit: true,
+    canDelete: true,
+    group: "core",
+  },
+
+  {
+    slug: "categories",
+    label: "Category",
+    labelPlural: "Categories",
+    table: "categories",
+    labelField: "label",
+    selectQuery: "*",
+    columns: [
+      { key: "id", label: "ID" },
+      { key: "name", label: "Name" },
+      { key: "label", label: "Label" },
+      { key: "description", label: "Description" },
+    ],
+    fields: [
+      { name: "name", label: "Name (slug)", type: "text", required: true, placeholder: "e.g. country_post_gender" },
+      { name: "label", label: "Display Label", type: "text", required: true, placeholder: "e.g. Country Post Sex" },
+      { name: "description", label: "Description", type: "textarea" },
+      { name: "dimensions", label: "Dimensions (JSON array)", type: "textarea", placeholder: '["country", "post", "sex"]', storeAsJson: true },
+    ],
+    orderBy: { column: "id", ascending: true },
+    canCreate: true,
+    canEdit: true,
+    canDelete: true,
+    group: "core",
+  },
+
+  {
+    slug: "dimensions",
+    label: "Dimension",
+    labelPlural: "Dimensions",
+    table: "dimensions",
+    labelField: "label",
+    selectQuery: "*",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "label", label: "Label" },
+      { key: "values", label: "Values" },
+    ],
+    fields: [
+      { name: "name", label: "Name (slug)", type: "text", required: true, placeholder: "e.g. sex, post, level" },
+      { name: "label", label: "Display Label", type: "text", required: true, placeholder: "e.g. Sex, Post, Level" },
+      { name: "values", label: "Values (JSON array)", type: "textarea", required: true, placeholder: '["Male", "Female"]', storeAsJson: true },
+    ],
+    orderBy: { column: "name", ascending: true },
     canCreate: true,
     canEdit: true,
     canDelete: true,
