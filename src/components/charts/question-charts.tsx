@@ -99,7 +99,7 @@ export function QuestionCharts({
         </div>
       );
 
-    case "country_gender_edrole":
+    case "level_country_edrole_gender":
       return (
         <div className="space-y-8">
           <GenderRoleColumnChart data={filteredData} oecs={oecs} />

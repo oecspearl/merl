@@ -1,17 +1,23 @@
 import { QuestionCategory, Question } from "@/types/database";
-import { TRAININGS, GENDERS, LEVELS, SUBJECTS, POSTS, EDROLES } from "@/types/constants";
+import { TRAININGS, GENDERS, LEVELS, SUBJECTS, POSTS, EDROLES, GRADES, FORMS } from "@/types/constants";
 
-// Maps for converting integer DB values to string enum values
+// Index → category-name lookup. Index matches the integer stored in DB.
+// Index 6 is reserved (deprecated country_gender_edrole) — fall back to no_level.
 const CATEGORY_VALUES: QuestionCategory[] = [
-  "no_level",
-  "country",
-  "country_training_gender",
-  "country_subject",
-  "country_gender",
-  "country_post",
-  "country_gender_edrole",
-  "level_country_edrole_gender",
-  "country_post_gender",
+  "no_level",                    // 0
+  "country",                     // 1
+  "country_training_gender",     // 2
+  "country_subject",             // 3
+  "country_gender",              // 4
+  "country_post",                // 5
+  "no_level",                    // 6 (deprecated)
+  "level_country_edrole_gender", // 7
+  "country_post_gender",         // 8
+  "country_level_gender",        // 9
+  "country_grade_gender",        // 10
+  "country_form_gender",         // 11
+  "country_level",               // 12
+  "country_level_subject_gender",// 13
 ];
 
 const INPUT_TYPE_VALUES = ["number", "boolean"] as const;
@@ -212,6 +218,8 @@ const FALLBACK_DIMS: DimensionMap = {
   edrole: EDROLES.map(titleize),
   post: POSTS.map(titleize),
   subject: SUBJECTS.map(titleize),
+  grade: [...GRADES],
+  form: [...FORMS],
 };
 
 function dim(dims: DimensionMap | undefined, key: string): string[] {
@@ -242,18 +250,6 @@ export function mapDataPoints(
         }
       }
       return { headers: ["Training", "Sex"], rows };
-    }
-
-    case "country_gender_edrole": {
-      const rows: DataRow[] = [];
-      for (const g of dim(dims, "sex")) {
-        let first = true;
-        for (const e of dim(dims, "edrole")) {
-          rows.push({ key: `${g}-${e}`, cells: [first ? g : "", e] });
-          first = false;
-        }
-      }
-      return { headers: ["Sex", "Ed. Role"], rows };
     }
 
     case "country_gender":
@@ -303,6 +299,67 @@ export function mapDataPoints(
         }
       }
       return { headers: ["Post", "Sex"], rows };
+    }
+
+    case "country_level_gender": {
+      const rows: DataRow[] = [];
+      for (const l of dim(dims, "level")) {
+        let first = true;
+        for (const g of dim(dims, "sex")) {
+          rows.push({ key: `${l}-${g}`, cells: [first ? l : "", g] });
+          first = false;
+        }
+      }
+      return { headers: ["Level", "Sex"], rows };
+    }
+
+    case "country_grade_gender": {
+      const rows: DataRow[] = [];
+      for (const gr of dim(dims, "grade")) {
+        let first = true;
+        for (const g of dim(dims, "sex")) {
+          rows.push({ key: `${gr}-${g}`, cells: [first ? gr : "", g] });
+          first = false;
+        }
+      }
+      return { headers: ["Grade", "Sex"], rows };
+    }
+
+    case "country_form_gender": {
+      const rows: DataRow[] = [];
+      for (const f of dim(dims, "form")) {
+        let first = true;
+        for (const g of dim(dims, "sex")) {
+          rows.push({ key: `${f}-${g}`, cells: [first ? f : "", g] });
+          first = false;
+        }
+      }
+      return { headers: ["Form", "Sex"], rows };
+    }
+
+    case "country_level":
+      return {
+        headers: ["Level"],
+        rows: dim(dims, "level").map((l) => ({ key: l, cells: [l] })),
+      };
+
+    case "country_level_subject_gender": {
+      const rows: DataRow[] = [];
+      for (const l of dim(dims, "level")) {
+        let firstLevel = true;
+        for (const s of dim(dims, "subject")) {
+          let firstSubj = true;
+          for (const g of dim(dims, "sex")) {
+            rows.push({
+              key: `${l}-${s}-${g}`,
+              cells: [firstLevel ? l : "", firstSubj ? s : "", g],
+            });
+            firstLevel = false;
+            firstSubj = false;
+          }
+        }
+      }
+      return { headers: ["Level", "Subject", "Sex"], rows };
     }
 
     case "country":

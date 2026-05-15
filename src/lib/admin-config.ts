@@ -57,9 +57,13 @@ export const CATEGORY_ENUM: Record<number, string> = {
   3: "Country Subject",
   4: "Country Sex",
   5: "Country Post",
-  6: "Country Sex Edrole (deprecated)",
   7: "Level Country Edrole Sex",
   8: "Country Post Sex",
+  9: "Country Level Sex",
+  10: "Country Grade Sex",
+  11: "Country Form Sex",
+  12: "Country Level",
+  13: "Country Level Subject Sex",
 };
 
 export const INPUT_TYPE_ENUM: Record<number, string> = {
@@ -245,7 +249,7 @@ export const ADMIN_MODELS: AdminModelConfig[] = [
         defaultValue: false,
       },
     ],
-    orderBy: { column: "created_at", ascending: false },
+    orderBy: { column: "statement", ascending: true },
     canCreate: true,
     canEdit: true,
     canDelete: true,

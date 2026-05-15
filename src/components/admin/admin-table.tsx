@@ -69,23 +69,41 @@ export function AdminTable({
   onDelete,
   deleting,
 }: AdminTableProps) {
+  const storageKey = `admin-table-${config.slug}`;
+
+  // Restore persisted state from localStorage
+  function loadState() {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch { return {}; }
+  }
+
+  const saved = loadState();
   const [page, setPage] = useState(1);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
-  const [groupBy, setGroupBy] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<string | null>(saved.sortKey ?? null);
+  const [sortDir, setSortDir] = useState<SortDir>(saved.sortDir ?? null);
+  const [groupBy, setGroupBy] = useState<string | null>(saved.groupBy ?? null);
+
+  // Persist state changes to localStorage
+  function persist(sk: string | null, sd: SortDir, gb: string | null) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(storageKey, JSON.stringify({ sortKey: sk, sortDir: sd, groupBy: gb }));
+  }
 
   // Find groupable columns (nested object columns like "component.title")
   const groupableColumns = config.columns.filter((c) => c.key.includes("."));
 
   function toggleSort(key: string) {
+    let newKey: string | null = key;
+    let newDir: SortDir = "asc";
     if (sortKey === key) {
-      if (sortDir === "asc") setSortDir("desc");
-      else if (sortDir === "desc") { setSortKey(null); setSortDir(null); }
-      else setSortDir("asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
+      if (sortDir === "asc") { newDir = "desc"; }
+      else if (sortDir === "desc") { newKey = null; newDir = null; }
     }
+    setSortKey(newKey);
+    setSortDir(newDir);
+    persist(newKey, newDir, groupBy);
     setPage(1);
   }
 
@@ -175,7 +193,7 @@ export function AdminTable({
           <label className="text-xs font-medium text-gray-500 uppercase">Group by</label>
           <select
             value={groupBy ?? ""}
-            onChange={(e) => { setGroupBy(e.target.value || null); setPage(1); }}
+            onChange={(e) => { const gb = e.target.value || null; setGroupBy(gb); persist(sortKey, sortDir, gb); setPage(1); }}
             className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
           >
             <option value="">None</option>

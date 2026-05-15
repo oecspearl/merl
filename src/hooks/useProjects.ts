@@ -141,22 +141,34 @@ export function useSaveBaselines() {
     }) => {
       const supabase = createClient();
       for (const baseline of baselines) {
-        const { data: existing } = await supabase
+        const statusInt = baseline.status === "submitted" ? 1 : 0;
+        const bQuery = supabase
           .from("baselines")
           .select("id")
-          .eq("question_id", baseline.question_id)
-          .is("country_id", baseline.country_id)
-          .is("key", baseline.key)
-          .maybeSingle();
+          .eq("question_id", baseline.question_id);
+        if (baseline.country_id !== null) {
+          bQuery.eq("country_id", baseline.country_id);
+        } else {
+          bQuery.is("country_id", null);
+        }
+        if (baseline.key !== null) {
+          bQuery.eq("key", baseline.key);
+        } else {
+          bQuery.is("key", null);
+        }
+        const { data: existing } = await bQuery.maybeSingle();
 
         if (existing) {
           const { error } = await supabase
             .from("baselines")
-            .update({ value: baseline.value, status: baseline.status })
+            .update({ value: baseline.value, status: statusInt })
             .eq("id", existing.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from("baselines").insert(baseline);
+          const { error } = await supabase.from("baselines").insert({
+            ...baseline,
+            status: statusInt,
+          });
           if (error) throw error;
         }
       }
@@ -192,23 +204,35 @@ export function useSaveTargets() {
     }) => {
       const supabase = createClient();
       for (const target of targets) {
-        const { data: existing } = await supabase
+        const statusInt = target.status === "submitted" ? 1 : 0;
+        const tQuery = supabase
           .from("targets")
           .select("id")
           .eq("question_id", target.question_id)
-          .eq("year", target.year)
-          .is("country_id", target.country_id)
-          .is("key", target.key)
-          .maybeSingle();
+          .eq("year", target.year);
+        if (target.country_id !== null) {
+          tQuery.eq("country_id", target.country_id);
+        } else {
+          tQuery.is("country_id", null);
+        }
+        if (target.key !== null) {
+          tQuery.eq("key", target.key);
+        } else {
+          tQuery.is("key", null);
+        }
+        const { data: existing } = await tQuery.maybeSingle();
 
         if (existing) {
           const { error } = await supabase
             .from("targets")
-            .update({ value: target.value, status: target.status })
+            .update({ value: target.value, status: statusInt })
             .eq("id", existing.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from("targets").insert(target);
+          const { error } = await supabase.from("targets").insert({
+            ...target,
+            status: statusInt,
+          });
           if (error) throw error;
         }
       }
@@ -250,18 +274,23 @@ export function useSavePerformanceIndicators() {
       const supabase = createClient();
 
       // Find or create project response
-      let { data: projectResponse } = await supabase
+      const prQuery = supabase
         .from("project_responses")
         .select("id")
         .eq("project_id", projectId)
-        .eq("year", year)
-        .eq("quarter", quarter)
-        .maybeSingle();
+        .eq("year", year);
+      if (quarter !== null) {
+        prQuery.eq("quarter", quarter);
+      } else {
+        prQuery.is("quarter", null);
+      }
+      let { data: projectResponse } = await prQuery.maybeSingle();
 
       if (!projectResponse) {
+        const statusInt = status === "submitted" ? 1 : 0;
         const { data, error } = await supabase
           .from("project_responses")
-          .insert({ project_id: projectId, year, quarter, status })
+          .insert({ project_id: projectId, year, quarter, status: statusInt })
           .select("id")
           .single();
         if (error) throw error;
@@ -270,14 +299,22 @@ export function useSavePerformanceIndicators() {
 
       // Upsert each indicator
       for (const indicator of indicators) {
-        const { data: existing } = await supabase
+        const piQuery = supabase
           .from("performance_indicators")
           .select("id")
           .eq("project_response_id", projectResponse.id)
-          .eq("question_id", indicator.question_id)
-          .is("country_id", indicator.country_id)
-          .is("key", indicator.key)
-          .maybeSingle();
+          .eq("question_id", indicator.question_id);
+        if (indicator.country_id !== null) {
+          piQuery.eq("country_id", indicator.country_id);
+        } else {
+          piQuery.is("country_id", null);
+        }
+        if (indicator.key !== null) {
+          piQuery.eq("key", indicator.key);
+        } else {
+          piQuery.is("key", null);
+        }
+        const { data: existing } = await piQuery.maybeSingle();
 
         if (existing) {
           const { error } = await supabase
@@ -300,9 +337,10 @@ export function useSavePerformanceIndicators() {
       }
 
       // Update project response status
+      const statusInt = status === "submitted" ? 1 : 0;
       await supabase
         .from("project_responses")
-        .update({ status })
+        .update({ status: statusInt })
         .eq("id", projectResponse.id);
     },
     onSuccess: (_, { projectId }) => {

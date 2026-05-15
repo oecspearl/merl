@@ -54,9 +54,13 @@ export type QuestionCategory =
   | "country_subject"
   | "country_gender"
   | "country_post"
-  | "country_gender_edrole"
   | "level_country_edrole_gender"
-  | "country_post_gender";
+  | "country_post_gender"
+  | "country_level_gender"
+  | "country_grade_gender"
+  | "country_form_gender"
+  | "country_level"
+  | "country_level_subject_gender";
 
 export const CATEGORY_MAP: Record<QuestionCategory, number> = {
   no_level: 0,
@@ -65,9 +69,13 @@ export const CATEGORY_MAP: Record<QuestionCategory, number> = {
   country_subject: 3,
   country_gender: 4,
   country_post: 5,
-  country_gender_edrole: 6,
   level_country_edrole_gender: 7,
   country_post_gender: 8,
+  country_level_gender: 9,
+  country_grade_gender: 10,
+  country_form_gender: 11,
+  country_level: 12,
+  country_level_subject_gender: 13,
 };
 
 export type InputType = "number" | "boolean";

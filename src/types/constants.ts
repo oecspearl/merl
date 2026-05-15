@@ -4,14 +4,21 @@ export const TRAININGS = ["ECE", "SEN"] as const;
 
 export const GENDERS = ["male", "female"] as const;
 
-export const LEVELS = ["pre_primary", "primary"] as const;
+export const LEVELS = ["pre_primary", "primary", "secondary"] as const;
 
-export const SUBJECTS = [
-  "language_arts",
-  "science",
-  "social_studies",
-  "mathematics",
+export const SUBJECTS = ["literacy", "numeracy"] as const;
+
+export const GRADES = [
+  "K",
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
 ] as const;
+
+export const FORMS = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"] as const;
 
 export const POSTS = ["principal", "dty_principal", "other_leaders"] as const;
 
