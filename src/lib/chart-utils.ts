@@ -8,7 +8,22 @@ export interface ChartDataPoint {
   key: string | null;
   baseline: number;
   target: number;
+  /** End-of-project target (stored under year "End"), shown alongside annual targets. */
+  endTarget: number;
   value: number;
+}
+
+/**
+ * Parse a stored value to a number, or null when it is blank or an N/A marker
+ * (".", "~", "-"). Non-numeric markers must not be silently coerced to 0 — that
+ * would plot a misleading zero instead of "no data".
+ */
+function parseNum(value: string | null): number | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -27,18 +42,28 @@ export function buildPerformanceData(
     if (b.status !== "submitted") continue;
     const cid = b.country_id ?? "";
     baselines[cid] ??= {};
-    baselines[cid][b.key ?? ""] = parseFloat(b.value ?? "0") || 0;
+    baselines[cid][b.key ?? ""] = parseNum(b.value) ?? 0;
   }
 
   // Target lookup: countryId -> year -> key -> value
+  // End-of-project targets (year "End") are kept in a separate bucket so they
+  // sit alongside the annual targets rather than colliding with year 0.
   const targets: Record<string, Record<number, Record<string, number>>> = {};
+  const endTargets: Record<string, Record<string, number>> = {};
   for (const t of question.targets ?? []) {
     if (t.status !== "submitted") continue;
     const cid = t.country_id ?? "";
-    const yr = parseInt(t.year) || 0;
+    const num = parseNum(t.value) ?? 0;
+    if (t.year === "End") {
+      endTargets[cid] ??= {};
+      endTargets[cid][t.key ?? ""] = num;
+      continue;
+    }
+    const yr = parseInt(t.year);
+    if (!Number.isFinite(yr)) continue;
     targets[cid] ??= {};
     targets[cid][yr] ??= {};
-    targets[cid][yr][t.key ?? ""] = parseFloat(t.value ?? "0") || 0;
+    targets[cid][yr][t.key ?? ""] = num;
   }
 
   // Country name map
@@ -51,6 +76,9 @@ export function buildPerformanceData(
     if (pr.status !== "submitted") continue;
     for (const pi of pr.performance_indicators ?? []) {
       if (pi.question_id !== question.id) continue;
+      // Skip N/A / blank progress markers — they are not plottable data points.
+      const val = parseNum(pi.value);
+      if (val === null) continue;
       const cid = pi.country_id ?? "";
       const key = pi.key ?? "";
       results.push({
@@ -63,7 +91,8 @@ export function buildPerformanceData(
         key: pi.key,
         baseline: baselines[cid]?.[key] ?? 0,
         target: targets[cid]?.[pr.year]?.[key] ?? 0,
-        value: parseFloat(pi.value ?? "0") || 0,
+        endTarget: endTargets[cid]?.[key] ?? 0,
+        value: val,
       });
     }
   }
@@ -119,6 +148,7 @@ export function aggregateToOECS(data: ChartDataPoint[]): ChartDataPoint[] {
     } else {
       grouped[gk].value += item.value;
       grouped[gk].target += item.target;
+      grouped[gk].endTarget += item.endTarget;
       grouped[gk].baseline += item.baseline;
     }
   }

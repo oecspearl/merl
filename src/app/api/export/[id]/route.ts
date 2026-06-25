@@ -85,6 +85,10 @@ export async function GET(
               (t: { country_id: string | null; year: string }) =>
                 t.country_id === country.id && t.year === String(year)
             );
+            const endTarget = question.targets?.find(
+              (t: { country_id: string | null; year: string }) =>
+                t.country_id === country.id && t.year === "End"
+            );
             const indicator = projectResponse?.performance_indicators?.find(
               (pi: { country_id: string | null; question_id: string }) =>
                 pi.country_id === country.id && pi.question_id === question.id
@@ -105,6 +109,7 @@ export async function GET(
 
             row["Baseline"] = baseline?.value || "";
             row["Target"] = target?.value || "";
+            row["End Target"] = endTarget?.value || "";
             row["Current Progress"] = indicator?.value || "";
             row["Means of Verification"] = indicator?.means_of_verification || "";
 

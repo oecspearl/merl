@@ -68,6 +68,20 @@ function getTargetValue(
   return target?.value || "";
 }
 
+function getEndTargetValue(
+  question: Question,
+  countryId: string | null,
+  key: string
+): string {
+  const target = question.targets?.find(
+    (t) =>
+      (t.country_id || null) === countryId &&
+      (t.key || "value") === key &&
+      t.year === "End"
+  );
+  return target?.value || "";
+}
+
 function hasBaselinesOrTargets(project: {
   components?: { questions?: Question[] }[];
 }): boolean {
@@ -577,6 +591,9 @@ function QuestionTable({
                 Target
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                End Target
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                 Current Progress {question.percentage && "(%)"}
               </th>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -619,6 +636,13 @@ function QuestionTable({
                             year
                           ) || "--"}
                         </td>
+                        <td className="px-3 py-2 text-gray-500">
+                          {getEndTargetValue(
+                            question,
+                            country.id,
+                            row.key
+                          ) || "--"}
+                        </td>
                         <td className="px-3 py-2">
                           <InputCell
                             question={question}
@@ -657,6 +681,9 @@ function QuestionTable({
                       </td>
                       <td className="px-3 py-2 text-gray-500">
                         {getTargetValue(question, null, row.key, year) || "--"}
+                      </td>
+                      <td className="px-3 py-2 text-gray-500">
+                        {getEndTargetValue(question, null, row.key) || "--"}
                       </td>
                       <td className="px-3 py-2">
                         <InputCell
